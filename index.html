@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+    <meta charset="UTF-8">
+    <title>Objednávka školního bufetu</title>
+
+    <!-- =================================================
+         🎨 STYLY (CSS)
+         ================================================= -->
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f4f7fb;
+        }
+
+        h1 {
+            text-align: center;
+            background: #2a72d4;
+            color: white;
+            padding: 20px;
+        }
+
+        .container {
+            width: 90%;
+            max-width: 500px;
+            margin: 30px auto;
+            background: white;
+            padding: 25px;
+            border-radius: 12px;
+        }
+
+        .item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin: 12px 0;
+            font-size: 18px;
+        }
+
+        input[type="number"] {
+            width: 70px;
+            text-align: center;
+        }
+
+        #celkem, #pocet {
+            text-align: center;
+            font-size: 22px;
+            margin-top: 15px;
+            font-weight: bold;
+            color: #2a72d4;
+        }
+
+        button {
+            width: 100%;
+            padding: 15px;
+            margin-top: 30px;
+            font-size: 24px;
+            background: #ff6b35;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+
+<body>
+
+<h1>SŠ Kostka – OBJEDNÁVKY BUFET</h1>
+
+<div class="container">
+
+    <!-- 🔵 SEM SE DYNAMICKY DOPLNÍ POLOŽKY Z CSV -->
+    <div id="items"></div>
+
+    <!-- 🟢 CELKOVÁ CENA -->
+    <div id="celkem">Celková cena: 0 Kč</div>
+
+    <!-- 🟣 CELKOVÝ POČET KUSŮ -->
+    <div id="pocet">Počet kusů: 0</div>
+
+    <!-- 🔴 ODESLÁNÍ OBJEDNÁVKY -->
+    <button onclick="odeslatObjednavku()">ODESLAT OBJEDNÁVKU</button>
+</div>
+
+<!-- =================================================
+     🧠 JAVASCRIPT – LOGIKA APLIKACE
+     ================================================= -->
+<script>
+
+/********************************************************
+ * 🔵 GLOBÁLNÍ PROMĚNNÉ
+ ********************************************************/
+
+// Objekt s cenami zboží (např. { sendvic: 45 })
+let prices = {};
+
+// Odkazy na HTML prvky
+const itemsContainer = document.getElementById("items");
+const celkemDiv = document.getElementById("celkem");
+const pocetDiv = document.getElementById("pocet");
+
+/********************************************************
+ * 🟡 NAČTENÍ CSV SOUBORU
+ * - volá se při načtení stránky
+ * - funguje jen přes HTTP server (Python)
+ ********************************************************/
+function nactiCSV() {
+
+    // Vymazání starých dat (důležité při F5)
+    prices = {};
+    itemsContainer.innerHTML = "";
+    spocitejCenu();
+
+    // ✅ SPRÁVNÝ název CSV souboru (BEZ ZPĚTNÉHO LOMÍTKA!)
+    // ?v=čas → zabrání cache
+    const url = "Data_bufet.csv?v=" + Date.now();
+
+    fetch(url, { cache: "no-store" })
+        .then(response => response.text())
+        .then(text => zpracujCSV(text))
+        .catch(error => {
+            console.error("Chyba při načítání CSV:", error);
+        });
+}
+
+// Automatické načtení CSV po otevření stránky
+nactiCSV();
+
+/********************************************************
+ * 🟢 ZPRACOVÁNÍ CSV DAT
+ ********************************************************/
+function zpracujCSV(text) {
+
+    // Rozdělení CSV na řádky
+    const lines = text.trim().split("\n");
+
+    // První řádek je hlavička → přeskakujeme
+    for (let i = 1; i < lines.length; i++) {
+
+        // Rozdělení na název a cenu
+        const [nazev, cena] = lines[i].split(";");
+
+        // Vytvoření bezpečného HTML ID
+        const id = nazev
+            .toLowerCase()
+            .normalize("NFD")
+            .replace(/[\u0300-\u036f]/g, "")
+            .replace(/\s+/g, "_");
+
+        prices[id] = Number(cena);
+
+        // Vytvoření položky v HTML
+        vytvorPolozku(id, nazev, cena);
+    }
+}
+
+/********************************************************
+ * 🔵 VYTVOŘENÍ JEDNÉ POLOŽKY FORMULÁŘE
+ ********************************************************/
+function vytvorPolozku(id, nazev, cena) {
+
+    const div = document.createElement("div");
+    div.className = "item";
+
+    div.innerHTML = `
+        <span>${nazev} (${cena} Kč)</span>
+        <input type="number" id="${id}" min="0" value="0">
+    `;
+
+    // Při změně počtu přepočítáme cenu
+    div.querySelector("input")
+       .addEventListener("input", spocitejCenu);
+
+    itemsContainer.appendChild(div);
+}
+
+/********************************************************
+ * 🧮 VÝPOČET CELKOVÉ CENY A POČTU KUSŮ
+ ********************************************************/
+function spocitejCenu() {
+
+    let totalPrice = 0;
+    let totalCount = 0;
+
+    for (let id in prices) {
+        const input = document.getElementById(id);
+        if (!input) continue;
+
+        const count = Number(input.value);
+        totalPrice += count * prices[id];
+        totalCount += count;
+    }
+
+    celkemDiv.textContent = "Celková cena: " + totalPrice + " Kč";
+    pocetDiv.textContent = "Počet kusů: " + totalCount;
+}
+
+/********************************************************
+ * 📤 ODESLÁNÍ OBJEDNÁVKY (DEMO)
+ ********************************************************/
+function odeslatObjednavku() {
+
+    const objednavka = {};
+
+    for (let id in prices) {
+        objednavka[id] = Number(document.getElementById(id).value);
+    }
+
+    console.log("ODESLANÁ OBJEDNÁVKA:", objednavka);
+    alert("Objednávka odeslána (zatím jen do konzole).");
+}
+
+</script>
+
+</body>
+</html>
